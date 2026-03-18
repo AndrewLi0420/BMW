@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes progress-fill {
+  0%   { width: 0%; }
+  70%  { width: 80%; }
+  100% { width: 88%; }
+}

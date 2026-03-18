@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+.venv/
+*.db
+
+# Env files (contain API keys)
+.env
+.env.local
+
+# Node
+node_modules/
+dist/
+build/
+
+# Misc
+.DS_Store
+.pytest_cache/
+uploads/*.xlsx
+uploads/*.csv
+uploads/*.pdf
+data/naatbatt_latest.xlsx
