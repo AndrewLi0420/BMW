@@ -96,6 +96,15 @@ This maps the pipeline's `battery_facilities_full` → `companies` and `battery_
 | BMW_project backend | 8001 |
 
 ---
+## When opening new terminal
+"deactivate" if you want to exit venv
+
+source ~/.zshrc if "zsh: command not found:"
+
+---
+
+
+---
 
 ## Environment Variables
 
@@ -112,3 +121,5 @@ TAVILY_API_KEY=your_key_here
 DATABASE_URL=sqlite:///./battery_intel.db    # optional
 PIPELINE_DB_PATH=/Users/andrewli/Desktop/bmw/BMW_project/backend/battery_pipeline.db  # optional
 ```
+
+
