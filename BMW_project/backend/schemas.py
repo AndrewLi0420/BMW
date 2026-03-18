@@ -48,12 +48,18 @@ class FacilitySchema(BaseModel):
     @field_validator("supply_chain_segment")
     @classmethod
     def validate_segment(cls, v: str) -> str:
-        if v not in SUPPLY_CHAIN_SEGMENTS:
-            raise ValueError(
-                f"Invalid supply chain segment: '{v}'. "
-                f"Must be one of {SUPPLY_CHAIN_SEGMENTS}"
-            )
-        return v
+        # Exact match first
+        if v in SUPPLY_CHAIN_SEGMENTS:
+            return v
+        # Case-insensitive fallback — LLMs sometimes change capitalisation
+        v_lower = v.strip().lower()
+        for seg in SUPPLY_CHAIN_SEGMENTS:
+            if seg.lower() == v_lower:
+                return seg
+        raise ValueError(
+            f"Invalid supply chain segment: '{v}'. "
+            f"Must be one of {SUPPLY_CHAIN_SEGMENTS}"
+        )
 
     @field_validator("facility_zip")
     @classmethod

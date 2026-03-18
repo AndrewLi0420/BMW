@@ -175,6 +175,15 @@ export default function App() {
                     <span className="font-bold text-gray-900">{result.facilities_found}</span>{' '}
                     {result.facilities_found === 1 ? 'facility' : 'facilities'} for{' '}
                     <span className="font-medium text-bmw-blue">{result.segment}</span>
+                    <span className="ml-2 text-gray-400 text-xs">
+                      ({result.facilities_added ?? 0} new, {result.facilities_updated ?? 0} updated)
+                    </span>
+                    {result.news_added > 0 && (
+                      <span className="ml-2 text-gray-400">
+                        · <span className="font-bold text-gray-900">{result.news_added}</span> news{' '}
+                        {result.news_added === 1 ? 'article' : 'articles'} added
+                      </span>
+                    )}
                   </p>
                   <CredibilityLegend />
                 </div>

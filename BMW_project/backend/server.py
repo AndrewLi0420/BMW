@@ -38,8 +38,8 @@ from pydantic import BaseModel
 from config import SUPPLY_CHAIN_SEGMENTS
 from db.models import init_db, get_session, BatteryFacility
 from api.perplexity_client import GeminiClient
-from pipeline.extractor import extract_facilities, extract_verification
-from pipeline.loader import upsert_facilities
+from pipeline.extractor import extract_facilities, extract_verification, extract_news
+from pipeline.loader import upsert_facilities, insert_news
 
 logging.basicConfig(
     level=logging.INFO,
@@ -102,6 +102,9 @@ class FacilityOut(BaseModel):
 class RunResponse(BaseModel):
     segment: str
     facilities_found: int
+    facilities_added: int
+    facilities_updated: int
+    news_added: int
     status: str
     facilities: list[FacilityOut]
 
@@ -196,9 +199,10 @@ def run_segment(body: RunRequest) -> RunResponse:
     # Upsert to DB (loader handles citations JSON encoding)
     session = get_session()
     try:
-        upsert_facilities(session, facilities)
+        upsert_stats = upsert_facilities(session, facilities)
     finally:
         session.close()
+    logger.info("Upsert stats: %s", upsert_stats)
 
     # Query saved rows to get IDs and build response
     session = get_session()
@@ -245,11 +249,8 @@ def run_segment(body: RunRequest) -> RunResponse:
             else:
                 valid_citations = citations_decoded
 
-            # If all citations were invalidated, remove the facility entirely
-            if not valid_citations:
-                session.delete(row)
-                continue
-
+            # If all citations were invalidated, keep the facility but clear citations
+            # rather than deleting it — the company is real even if source links expired.
             if valid_citations != citations_decoded:
                 row.citations = json.dumps(valid_citations)
 
@@ -272,10 +273,33 @@ def run_segment(body: RunRequest) -> RunResponse:
     finally:
         session.close()
 
-    logger.info("Pipeline complete — %d facilities for '%s'", len(facility_out), body.segment)
+    # Phase 4: Fetch news for each company found in this run
+    news_added = 0
+    companies = list({f.company for f in facility_out})
+    for company in companies:
+        try:
+            raw_news = client.search_news(company)
+            news_items = extract_news(raw_news)
+            if news_items:
+                session = get_session()
+                try:
+                    stats = insert_news(session, news_items)
+                    news_added += stats["inserted"]
+                finally:
+                    session.close()
+        except Exception as exc:
+            logger.warning("News search failed for '%s': %s", company, exc)
+
+    logger.info(
+        "Pipeline complete — %d facilities, %d news items for '%s'",
+        len(facility_out), news_added, body.segment,
+    )
     return RunResponse(
         segment=body.segment,
         facilities_found=len(facility_out),
+        facilities_added=upsert_stats.get("inserted", 0),
+        facilities_updated=upsert_stats.get("updated", 0),
+        news_added=news_added,
         status="ok",
         facilities=facility_out,
     )

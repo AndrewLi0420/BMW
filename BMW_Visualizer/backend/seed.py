@@ -76,6 +76,11 @@ def download_xlsx(force: bool = False) -> bool:
 
 
 def _safe_str(val) -> str | None:
+    # Duplicate column names in XLSX cause row[col] to return a Series instead of scalar.
+    # Take the first non-null value in that case.
+    if isinstance(val, pd.Series):
+        non_null = val.dropna()
+        val = non_null.iloc[0] if len(non_null) > 0 else None
     if val is None or (isinstance(val, float) and pd.isna(val)):
         return None
     return str(val).strip() or None
@@ -162,8 +167,14 @@ def parse_xlsx() -> dict[str, dict]:
             capacity_units = _safe_str(
                 row.get("Capacity Units") or row.get("Production Units")
             )
-            # Use segment from data column when available; fall back to sheet name
-            segment = _safe_str(row.get("Supply Chain Segment")) or sheet
+            # SEGMENT_TO_TYPE keys are sheet names (e.g. "Raw Materials", "Equipment").
+            # When the current sheet is a recognized segment, use the sheet name directly
+            # so that both the stored segment and the type lookup are correct.
+            # Fall back to the column value for generic/summary sheets like "Append2".
+            if sheet in SEGMENT_TO_TYPE:
+                segment = sheet
+            else:
+                segment = _safe_str(row.get("Supply Chain Segment")) or sheet
             company_type = SEGMENT_TO_TYPE.get(segment, "other")
 
             location = {
@@ -231,6 +242,11 @@ def parse_xlsx() -> dict[str, dict]:
                 if segment not in focus:
                     focus.append(segment)
                 existing["company_focus"] = json.dumps(focus)
+                # Upgrade segment/type when a named segment sheet gives us better data
+                # than a prior generic sheet (e.g. Append2 → "Raw Materials" sheet).
+                if sheet in SEGMENT_TO_TYPE:
+                    existing["supply_chain_segment"] = segment
+                    existing["company_type"] = company_type
                 # Fill in missing fields from subsequent rows
                 if not existing["company_hq_lat"] and lat:
                     existing["company_hq_lat"] = lat
