@@ -5,6 +5,9 @@ load_dotenv()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
+
+# BMW_project pipeline backend
+BMW_PROJECT_URL = os.getenv("BMW_PROJECT_URL", "http://localhost:8001")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./battery_intel.db")
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
 
@@ -31,8 +34,3 @@ VALID_SHEETS = [
 # No country restriction — import all NAATBatt companies globally
 VALID_COUNTRIES: set[str] = set()
 
-# Path to the BMW_project pipeline SQLite DB for sync
-PIPELINE_DB_PATH = os.getenv(
-    "PIPELINE_DB_PATH",
-    "/Users/andrewli/Desktop/bmw/BMW_project/backend/battery_pipeline.db",
-)

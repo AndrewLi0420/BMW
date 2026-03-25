@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { getSyncStatus, triggerSync, syncPipeline } from '../api/client'
+import { getSyncStatus, triggerSync, getPipelineSegments, runPipeline } from '../api/client'
 
 const TABS = [
   { id: 'map', label: 'Map' },
@@ -13,10 +13,13 @@ const TABS = [
 export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode }) {
   const [syncInfo, setSyncInfo] = useState(null)
   const [syncing, setSyncing] = useState(false)
-  const [pipelineSyncing, setPipelineSyncing] = useState(false)
+  const [pipelineOpen, setPipelineOpen] = useState(false)
+  const [pipelineRunning, setPipelineRunning] = useState(false)
   const [pipelineMsg, setPipelineMsg] = useState(null)
+  const [segments, setSegments] = useState([])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef(null)
+  const pipelineRef = useRef(null)
 
   useEffect(() => {
     loadSync()
@@ -24,16 +27,19 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode 
     return () => clearInterval(interval)
   }, [])
 
-  // Close dropdown on outside click
+  useEffect(() => {
+    getPipelineSegments().then(({ data }) => setSegments(data)).catch(() => {})
+  }, [])
+
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClick(e) {
-      if (settingsRef.current && !settingsRef.current.contains(e.target)) {
-        setSettingsOpen(false)
-      }
+      if (settingsRef.current && !settingsRef.current.contains(e.target)) setSettingsOpen(false)
+      if (pipelineRef.current && !pipelineRef.current.contains(e.target)) setPipelineOpen(false)
     }
-    if (settingsOpen) document.addEventListener('mousedown', handleClick)
+    document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [settingsOpen])
+  }, [])
 
   async function loadSync() {
     try {
@@ -42,18 +48,19 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode 
     } catch (_) {}
   }
 
-  async function handlePipelineSync() {
-    setPipelineSyncing(true)
-    setPipelineMsg(null)
+  async function handleRunSegment(segment) {
+    setPipelineOpen(false)
+    setPipelineRunning(true)
+    setPipelineMsg(`Running: ${segment}…`)
     try {
-      const { data } = await syncPipeline()
+      const { data } = await runPipeline(segment)
       setPipelineMsg(`+${data.companies_added} co. +${data.news_added} news`)
       setTimeout(() => setPipelineMsg(null), 6000)
     } catch (_) {
-      setPipelineMsg('Error')
+      setPipelineMsg('Pipeline error')
       setTimeout(() => setPipelineMsg(null), 3000)
     }
-    setPipelineSyncing(false)
+    setPipelineRunning(false)
   }
 
   async function handleSync() {
@@ -107,15 +114,42 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode 
         {/* Right controls */}
         <div className="flex items-center gap-2 min-w-fit">
           {pipelineMsg && (
-            <span className="text-[#22c55e] text-xs whitespace-nowrap">{pipelineMsg}</span>
+            <span className={`text-xs whitespace-nowrap ${pipelineRunning ? 'text-[#facc15]' : 'text-[#22c55e]'}`}>
+              {pipelineMsg}
+            </span>
           )}
-          <button
-            onClick={handlePipelineSync}
-            disabled={pipelineSyncing}
-            className="bg-[#22c55e] hover:bg-[#16a34a] text-white disabled:opacity-40 text-xs px-3 py-1 rounded transition-colors whitespace-nowrap"
-          >
-            {pipelineSyncing ? 'Importing…' : 'Import Pipeline'}
-          </button>
+
+          {/* Run Pipeline dropdown */}
+          <div className="relative" ref={pipelineRef}>
+            <button
+              onClick={() => !pipelineRunning && setPipelineOpen((o) => !o)}
+              disabled={pipelineRunning}
+              className="bg-[#22c55e] hover:bg-[#16a34a] text-white disabled:opacity-40 text-xs px-3 py-1 rounded transition-colors whitespace-nowrap flex items-center gap-1"
+            >
+              {pipelineRunning ? 'Running…' : 'Run Pipeline'}
+              {!pipelineRunning && (
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              )}
+            </button>
+            {pipelineOpen && (
+              <div className="absolute right-0 top-full mt-1 w-52 bg-[#031E49] border border-[#0a2a5e] rounded-lg shadow-2xl z-50 py-1 max-h-80 overflow-y-auto">
+                <div className="px-3 py-1.5 text-[10px] font-semibold text-[#8aa4be] uppercase tracking-wider">
+                  Select Segment
+                </div>
+                {segments.map((seg) => (
+                  <button
+                    key={seg}
+                    onClick={() => handleRunSegment(seg)}
+                    className="w-full text-left px-3 py-2 text-sm text-[#8aa4be] hover:text-white hover:bg-[#0a2a5e]/60 transition-colors"
+                  >
+                    {seg}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             onClick={handleSync}
             disabled={syncing}

@@ -43,7 +43,8 @@ export const listJobs = () => api.get('/jobs')
 
 export const getSyncStatus = () => api.get('/sync/status')
 export const triggerSync = () => api.post('/sync/naatbatt')
-export const syncPipeline = () => api.post('/sync/pipeline')
+export const getPipelineSegments = () => api.get('/pipeline/segments')
+export const runPipeline = (segment) => api.post('/pipeline/run', { segment })
 export const getSeedStatus = () => api.get('/seed/status')
 export const triggerSeed = () => api.post('/seed')
 
